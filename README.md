@@ -70,6 +70,7 @@ Every 10 minutes it wakes from deep sleep, measures temperature & humidity (SHT3
 | VIN+ | (+) baterii LiPo / LiPo (+) |
 | VIN- | zwarte z V_BUS / shorted to V_BUS |
 | V_BUS | zwarte z VIN- / shorted to VIN- |
+| GND | (-) baterii LiPo / LiPo (-) |
 
 > INA226 mierzy napięcie szyny (bus voltage) jako napięcie baterii.  
 > INA226 measures bus voltage as battery voltage.
