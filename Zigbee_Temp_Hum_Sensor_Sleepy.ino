@@ -19,12 +19,18 @@
 //    - Zachowano wybudzanie GPIO z deep sleep – przycisk działa w każdym stanie.
 //    - Dodano antyodbicie (debounce) dla przycisku.
 //    - Ujednolicono logowanie factory reset.
+//    - Zastosowano bibliotekę INA226_WE zamiast Adafruit_INA219 dla poprawy stabilności po deep sleep.
+//    - Dodano reset I2C i opóźnienie po wybudzeniu, aby uniknąć crash.
+//    - Poprawiono inicjalizację INA226 – użyto sprawdzonych metod z oryginalnego kodu.
 //
 //    - Restored active button handling in loop() – factory reset works even
 //      when device is awake (e.g., waiting for connection).
 //    - Kept GPIO wakeup from deep sleep – button works in any state.
 //    - Added debounce for button.
 //    - Unified factory reset logging.
+//    - Replaced Adafruit_INA219 with INA226_WE library for better stability after deep sleep.
+//    - Added I2C reset and delay after wake-up to prevent crash.
+//    - Fixed INA226 initialization – using proven methods from original code.
 //
 // =============================================================================
 //  MODYFIKACJA ORYGINALNEGO PRZYKŁADU / MODIFICATION OF ORIGINAL EXAMPLE
@@ -48,7 +54,7 @@
 #include "Zigbee.h"
 #include <Wire.h>
 #include "Adafruit_SHT31.h"
-#include <Adafruit_INA219.h>
+#include <INA226_WE.h>           // ZMIANA: użyto dedykowanej biblioteki dla INA226
 #include <nvs_flash.h>
 #include <esp_wifi.h>      // esp_wifi_stop() przed sleep / before sleep
 #include <esp_bt.h>        // esp_bt_controller_disable() przed sleep / before sleep
@@ -59,7 +65,7 @@
 //  DEBUG_ENABLED 1 → wszystkie logi (development)
 //  DEBUG_ENABLED 0 → tylko WARN i ERROR (production, zero overhead)
 // =============================================================================
-#define DEBUG_ENABLED 0
+#define DEBUG_ENABLED 1
 
 #if DEBUG_ENABLED
   #define LOG_DEBUG(fmt, ...)  Serial.printf("[DEBUG] " fmt "\r\n", ##__VA_ARGS__)
@@ -102,6 +108,8 @@
 #define SHT3X_HUM_MIN           0.0f   // dolna granica wilgotności / lower humidity limit [%]
 #define SHT3X_HUM_MAX           100.0f // górna granica wilgotności / upper humidity limit [%]
 
+#define INA226_ADDR            0x40    // adres I2C czujnika INA226
+#define SHUNT_RESISTANCE       0.1f    // rezystor bocznikowy [Ω]
 #define INA226_MAX_RETRIES      3      // próby odczytu INA226 / INA226 read attempts
 #define INA226_RETRY_DELAY_MS   50
 
@@ -161,7 +169,7 @@ static portMUX_TYPE sleepMux = portMUX_INITIALIZER_UNLOCKED;
 // -----------------------------------------------------------------------------
 ZigbeeTempSensor zbTempSensor = ZigbeeTempSensor(TEMP_SENSOR_ENDPOINT_NUMBER);
 Adafruit_SHT31   sht31        = Adafruit_SHT31();
-Adafruit_INA219  ina219;
+INA226_WE        ina226       = INA226_WE(INA226_ADDR);   // ZMIANA: podajemy adres
 
 uint8_t button = BOOT_PIN_NUM;
 
@@ -250,7 +258,7 @@ float readBatteryVoltage() {
   }
 
   for (int attempt = 1; attempt <= INA226_MAX_RETRIES; attempt++) {
-    float busVoltage_V = ina219.getBusVoltage_V();
+    float busVoltage_V = ina226.getBusVoltage_V();   // ZMIANA: odczyt z INA226_WE
 
     // Zakres 0.5–5.5V: dolna granica odrzuca zwarcia i błędy I2C (zwracają 0V),
     // górna granica z marginesem na przepięcia pomiarowe przy 1S LiPo (max 4.2V).
@@ -421,6 +429,10 @@ void onGlobalResponse(zb_cmd_type_t command, esp_zb_zcl_status_t status,
 // =============================================================================
 static void measureAndSleep(void *arg) {
 
+  // ── DODANE: krótkie opóźnienie po wybudzeniu z deep sleep, aby I2C i czujniki zdążyły się ustabilizować ──
+  // ── ADDED: short delay after deep sleep wake-up to allow I2C and sensors to stabilize ──
+  vTaskDelay(100 / portTICK_PERIOD_MS);
+
   // ── 1. Odczyt temperatury i wilgotności z SHT3x (retry + timeout + walidacja) ──
   // ── 1. Read temperature & humidity from SHT3x (retry + timeout + validation) ──
   float temperature = 0.0f;
@@ -443,7 +455,7 @@ static void measureAndSleep(void *arg) {
   // ── 3. Set values in Zigbee clusters ──
   zbTempSensor.setTemperature(temperature);
   zbTempSensor.setHumidity(humidity);
-  zbTempSensor.setPowerSource(ZB_POWER_SOURCE_BATTERY, batteryPercent);
+  zbTempSensor.setBatteryPercentage(batteryPercent);
 
   LOG_INFO("Raport Zigbee / Zigbee report: %.2f°C, %.2f%%, batt: %u%% (%.2fV)",
                 temperature, humidity, batteryPercent, batteryVoltage);
@@ -517,11 +529,15 @@ void setup() {
 
   // Inicjalizacja INA226
   // Initialize INA226
-  if (!ina219.begin()) {
+  if (!ina226.init()) {
     LOG_ERROR("INA226 nie znaleziony! / INA226 not found! Sprawdź podłączenie / Check wiring.");
     dev.inaAvailable = false;
   } else {
-    ina219.setCalibration_16V_400mA();
+    // Ustawienia kalibracji i konwersji – zgodne z oryginalnym kodem
+    ina226.setResistorRange(SHUNT_RESISTANCE, 500.0f);
+    ina226.setAverage(INA226_AVERAGE_16);
+    ina226.setConversionTime(INA226_CONV_TIME_1100, INA226_CONV_TIME_1100);
+    ina226.setMeasureMode(INA226_CONTINUOUS);
     LOG_INFO("INA226 OK (zakres / range 16V/400mA).");
     dev.inaAvailable = true;
   }
@@ -544,9 +560,10 @@ void setup() {
 
   // Konfiguracja endpointu Zigbee
   // Zigbee endpoint configuration
-  zbTempSensor.setManufacturerAndModel("Espressif", "SleepyZigbeeSensor");
+  zbTempSensor.setManufacturerAndModel("Espressif", "SleepyZigbeeTempSensor");
   zbTempSensor.setMinMaxValue(SHT3X_TEMP_MIN, SHT3X_TEMP_MAX);
-  zbTempSensor.setPowerSource(ZB_POWER_SOURCE_BATTERY, 100);
+  zbTempSensor.setTolerance(0.3f);                        // ← przywrócone
+  zbTempSensor.setPowerSource(ZB_POWER_SOURCE_BATTERY, 100, 35); // ← trzeci argument (napięcie nominalne baterii)
   zbTempSensor.addHumiditySensor(SHT3X_HUM_MIN, SHT3X_HUM_MAX, 1);
 
   Zigbee.onGlobalDefaultResponse(onGlobalResponse);
@@ -567,6 +584,15 @@ void setup() {
   if (wakeupCause == ESP_SLEEP_WAKEUP_GPIO) {
     factoryResetRequested = true;
     LOG_WARN("Wybudzenie przez przycisk GPIO0 — factory reset zlecony / Button GPIO0 wakeup — factory reset requested.");
+  }
+
+  // DODANE: po wybudzeniu z deep sleep (GPIO lub timer) resetuję I2C, aby uniknąć problemów z czujnikami
+  // ADDED: after deep sleep wake-up (GPIO or timer) reset I2C to prevent sensor issues
+  if (wakeupCause != ESP_SLEEP_WAKEUP_UNDEFINED) {
+    Wire.end();
+    Wire.begin();
+    delay(10);
+    LOG_INFO("I2C zresetowany po deep sleep / I2C reset after deep sleep.");
   }
 
   if (wakeupCause == ESP_SLEEP_WAKEUP_UNDEFINED) {
