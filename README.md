@@ -294,17 +294,14 @@ Sprawdź wyjście Serial Monitor / Check Serial Monitor output:
 ```
 ├── README.md
 ├── LICENSE
-├── *.ino                    ← kod źródłowy / source code
-├── docs/
-│   ├── INSTALLATION.md
-│   ├── TROUBLESHOOTING.md
-│   ├── POWER_ANALYSIS.md
-│   └── SMARTTHINGS_SETUP.md
+├── .gitignore
+├── Zigbee_Temp_Hum_Sensor_Sleepy.ino
 └── images/
     ├── PCB.jpg
     ├── Schemat.jpg
-    └── SmartThings_device.jpg
-```
+    ├── SHT3x_pinout.jpg
+    ├── ina226_pinout.jpg
+    └── xiao_esp32c6_pinout.jpg
 
 ---
 
