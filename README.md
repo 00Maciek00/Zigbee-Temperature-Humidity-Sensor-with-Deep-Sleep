@@ -1,6 +1,8 @@
-# Zigbee Czujnik Temperatury i Wilgotności z Deep Sleep
+# Zigbee Temperature & Humidity Sensor with Deep Sleep
 
 [Polski](#polski) | [English](#english)
+
+## Polski
 
 **Wersja:** 1.0 &nbsp;|&nbsp; **Autor:** Maciej Sikorski &nbsp;|&nbsp; **Data:** 30.03.2026 &nbsp;|&nbsp; **Licencja:** Apache 2.0
 
@@ -300,7 +302,7 @@ Zobacz plik [LICENSE](LICENSE) po pełny tekst licencji.
 ---
 ---
 
-# Zigbee Temperature & Humidity Sensor with Deep Sleep
+## English
 
 **Version:** 1.0 &nbsp;|&nbsp; **Author:** Maciej Sikorski &nbsp;|&nbsp; **Date:** 30.03.2026 &nbsp;|&nbsp; **License:** Apache 2.0
 
