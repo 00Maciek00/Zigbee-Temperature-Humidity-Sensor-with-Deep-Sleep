@@ -628,25 +628,31 @@ void setup() {
 //  Main loop
 // =============================================================================
 void loop() {
-  // ---- Obsługa przycisku w stanie aktywnym ----
-  // Dodano: natychmiastowy factory reset po wciśnięciu przycisku, gdy urządzenie nie śpi
-  // (przycisk działa już podczas głębokiego snu przez GPIO wakeup, a tutaj uzupełniamy o aktywny stan)
-  if (digitalRead(button) == LOW) {
-    delay(50);  // prosty debounce
-    if (digitalRead(button) == LOW) {
-      LOG_WARN("Przycisk wciśnięty w stanie aktywnym – wykonuję factory reset");
-      // Mignięcie diodą 3x jako potwierdzenie
-      for (int i = 0; i < 3; i++) {
-        digitalWrite(LED_PIN, LOW);  delay(100);
-        digitalWrite(LED_PIN, HIGH); delay(100);
-      }
-      digitalWrite(LED_PIN, LOW);
-      Zigbee.factoryReset();
-      esp_restart();
-    }
-  }
+  // ---- Obsługa przycisku - wymagane przytrzymanie 3 s ----
+  static unsigned long buttonPressStart = 0;
+  static bool buttonWasPressed = false;
 
-  updateLed();
+  int btnState = digitalRead(button);
+  if (btnState == LOW) {
+    if (!buttonWasPressed) {
+      buttonWasPressed = true;
+      buttonPressStart = millis();
+    } else {
+      // jeśli przycisk trzymany dłużej niż 3 sekundy – wykonaj factory reset
+      if (millis() - buttonPressStart >= 3000) {
+        LOG_WARN("Przycisk trzymany 3 s – factory reset");
+        for (int i = 0; i < 3; i++) {
+          digitalWrite(LED_PIN, LOW);  delay(100);
+          digitalWrite(LED_PIN, HIGH); delay(100);
+        }
+        digitalWrite(LED_PIN, LOW);
+        Zigbee.factoryReset();
+        esp_restart();
+      }
+    }
+  } else {
+    buttonWasPressed = false; // przycisk puszczony
+  }
 
   // Po połączeniu — jednorazowo uruchom pomiar
   // After connection — start measurement once
