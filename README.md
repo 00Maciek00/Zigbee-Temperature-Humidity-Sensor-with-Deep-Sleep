@@ -20,11 +20,21 @@ Every 10 minutes it wakes from deep sleep, measures temperature & humidity (SHT3
 
 ## Zdjęcie / Photo
 
-![PCB](PCB.jpg)
+![PCB](images/PCB.jpg)
 
 *XIAO ESP32C6 (góra / top) + INA226 (lewy dół / bottom left) + SHT3x (prawy dół / bottom right)*
 
-![PCB](Schemat.jpg)
+![PCB](images/Schemat.jpg)
+---
+
+## Cechy / Features
+
+- 🔋 **Efektywny energetycznie / Power efficient:** Deep sleep 10 minut, ~5–6 lat na baterii LiPo 2000 mAh
+- 🛡️ **Niezawodny / Reliable:** Retry logic dla czujników, RTC fallback, thread-safe
+- 📊 **Monitorowanie baterii / Battery monitoring:** Napięcie + procent rozładowania
+- 🌡️ **Dokładne pomiary / Accurate measurements:** SHT3x (±0.3°C, ±2% RH), timeout + walidacja zakresu
+- 🔧 **Factory Reset:** Przycisk BOOT (> 3 s) resetuje Zigbee binding
+- 📝 **Bilingual docs / Dokumentacja dwujęzyczna:** PL + EN
 
 ---
 
@@ -36,6 +46,21 @@ Every 10 minutes it wakes from deep sleep, measures temperature & humidity (SHT3
 | Czujnik T/H / T/H Sensor | SHT30 / SHT31 / SHT35 (SHT3x) |
 | Monitor baterii / Battery monitor | INA226 |
 | Bateria / Battery | Li-Pol / LiPo 3.7V |
+
+---
+
+## BOM (Lista części / Parts list)
+
+| Lp. / No. | Komponent / Component | Model | Ilość / Qty | Źródło / Source |
+|---|---|---|---|---|
+| 1 | Płytka / Board | XIAO ESP32C6 | 1 | Seeed Studio |
+| 2 | Czujnik T/H | SHT31 | 1 | Adafruit / AliExpress |
+| 3 | Monitor baterii / Battery monitor | INA226 | 1 | AliExpress |
+| 4 | Bateria LiPo | 503450 (500 mAh) / 704050 (2000 mAh) | 1 | AliExpress |
+| 5 | Kondensator ceramiczny | 100 nF (dla SHT3x, INA226) | 2 | AliExpress |
+| 6 | Rezystor pull-up | 10 kΩ (opcjonalnie / optional) | 2 | AliExpress |
+
+> 💡 Całkowity koszt (~2026): ~25–40 PLN (bez baterii / without battery)
 
 ---
 
@@ -90,90 +115,8 @@ Every 10 minutes it wakes from deep sleep, measures temperature & humidity (SHT3
 
 ---
 
-## Konfiguracja Arduino IDE / Arduino IDE setup
+## Instalacja / Installation
 
-### 1. Płytka / Board
+### Krok 1: Arduino IDE + pakiet ESP32 / Step 1: Arduino IDE + ESP32 package
 
-Zainstaluj pakiet ESP32 Arduino (Espressif) w wersji **3.x** lub nowszej.  
-Install ESP32 Arduino package (Espressif) version **3.x** or newer.
-
-Wybierz / Select: `Tools → Board → ESP32 Arduino → XIAO_ESP32C6`
-
-### 2. ⚠️ Tryb Zigbee / Zigbee mode — WYMAGANE / REQUIRED
-
-```
-Tools → Zigbee mode → Zigbee ED (end device)
-```
-
-Bez tego ustawienia kompilacja zakończy się błędem.  
-Without this setting compilation will fail with an error.
-
-### 3. Partycja / Partition scheme
-
-```
-Tools → Partition Scheme → Zigbee 4MB with spiffs
-```
-
----
-
-## Biblioteki / Libraries
-
-Zainstaluj przez Arduino Library Manager / Install via Arduino Library Manager:
-
-| Biblioteka / Library | Autor / Author |
-|---|---|
-| `Adafruit SHT31 Library` | Adafruit |
-| `Adafruit INA219` | Adafruit |
-| `Adafruit BusIO` | Adafruit (zależność / dependency) |
-
-> **Uwaga / Note:** Biblioteka `Adafruit INA219` jest używana z układem INA226.  
-> Działa poprawnie dla odczytu napięcia szyny (bus voltage).  
-> The `Adafruit INA219` library is used with the INA226 chip.  
-> It works correctly for bus voltage reading.
-
----
-
-## Działanie / Operation
-
-```
-[Budzenie / Wake up]
-        ↓
-[Odczyt SHT3x: T + RH / Read SHT3x: T + RH]
-        ↓
-[Odczyt INA226: napięcie baterii / Read INA226: battery voltage]
-        ↓
-[Połączenie Zigbee / Zigbee connect]
-        ↓
-[Raport Zigbee: T, RH, % baterii / Zigbee report: T, RH, battery %]
-        ↓
-[Deep sleep 10 min]
-```
-
----
-
-## Kompatybilność Zigbee / Zigbee compatibility
-
-Czujnik był projektowany i budowany z myślą o integracji z **Samsung SmartThings**.  
-The sensor was designed and built for integration with **Samsung SmartThings**.
-
-Powinien działać również z innymi koordynatorami Zigbee, jednak nie były one testowane.  
-Should also work with other Zigbee coordinators, but these have not been tested.
-
-| Hub / Coordinator | Status |
-|---|---|
-| **Samsung SmartThings** |  Docelowy / Target platform |
-| Home Assistant + ZHA |  Nie testowano / Not tested |
-| Zigbee2MQTT |  Nie testowano / Not tested |
-
----
-
-## Licencja / License
-
-Ten projekt oparty jest na przykładzie Espressif Systems objętym licencją Apache 2.0.  
-This project is based on an Espressif Systems example covered by the Apache 2.0 license.
-
-Copyright 2026 Maciej Sikorski  
-Copyright 2024 Espressif Systems (Shanghai) PTE LTD  
-
-Zobacz plik [LICENSE](LICENSE) po pełny tekst licencji.  
-See [LICENSE](LICENSE) file for full license text.
+1. `File → Preferences → Additional Boards Manager URLs` — dodaj / add:
