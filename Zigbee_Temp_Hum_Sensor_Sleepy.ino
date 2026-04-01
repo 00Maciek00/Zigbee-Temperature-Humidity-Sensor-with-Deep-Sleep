@@ -1,10 +1,9 @@
-
 // =============================================================================
 //  Zigbee Czujnik Temperatury i Wilgotności z Deep Sleep
 //  Zigbee Temperature & Humidity Sensor with Deep Sleep
 // =============================================================================
 //
-//  Wersja / Version: 2.3
+//  Wersja / Version: 2.5
 //  Autor / Author:   Maciej Sikorski
 //  Data / Date:      01.04.2026
 //
@@ -14,65 +13,18 @@
 //    - SHT3x  — temperatura i wilgotność / temperature and humidity
 //    - INA226 — napięcie i prąd baterii LiPo / LiPo battery voltage and current
 //
-//  Zmiany v2.4 / Changes v2.4:
-//    - Factory reset przez GPIO wakeup zamiast pollingu w loop()
-//    - esp_deep_sleep_enable_gpio_wakeup() na GPIO0 (nowy przycisk)
-//    - Flaga RTC_DATA_ATTR factoryResetRequested — przeżywa deep sleep
-//    - Reset wykonywany po Zigbee.begin(), nie przed — stos Zigbee gotowy
-//    - Usunięto checkFactoryReset() — przycisk działa teraz również podczas snu
+//  Zmiany v2.5 / Changes v2.5:
+//    - Przywrócono aktywną obsługę przycisku w loop() – factory reset działa też,
+//      gdy urządzenie nie śpi (np. podczas oczekiwania na połączenie).
+//    - Zachowano wybudzanie GPIO z deep sleep – przycisk działa w każdym stanie.
+//    - Dodano antyodbicie (debounce) dla przycisku.
+//    - Ujednolicono logowanie factory reset.
 //
-//    - Factory reset via GPIO wakeup instead of loop() polling
-//    - esp_deep_sleep_enable_gpio_wakeup() on GPIO0 (new button)
-//    - RTC_DATA_ATTR factoryResetRequested flag — survives deep sleep
-//    - Reset executed after Zigbee.begin(), not before — Zigbee stack ready
-//    - Removed checkFactoryReset() — button now works during deep sleep too
-//
-//    - INA226 fallback: ostatnia dobra wartość z RTC zamiast 0.0V
-//    - Zakres sanity check INA226 (0.5–5.5V) opatrzony komentarzem (1S LiPo, celowe)
-//    - delay(10) po Serial.flush() przed deep sleep — gwarancja opróżnienia UART
-//
-//    - INA226 fallback: last good value from RTC instead of 0.0V
-//    - INA226 sanity check range (0.5–5.5V) documented (1S LiPo, intentional)
-//    - delay(10) after Serial.flush() before deep sleep — guaranteed UART drain
-//
-
-//    - Makra logowania: LOG_DEBUG/LOG_INFO/LOG_WARN/LOG_ERROR
-//    - DEBUG_ENABLED=0 usuwa logi debug/info z binarki (zero overhead)
-//    - WARN i ERROR logują zawsze (krytyczne zdarzenia produkcyjne)
-//
-//    - Logging macros: LOG_DEBUG/LOG_INFO/LOG_WARN/LOG_ERROR
-//    - DEBUG_ENABLED=0 removes debug/info logs from binary (zero overhead)
-//    - WARN and ERROR always log (production-critical events)
-//
-
-//    - Pominięcie 5s countdown po wake-upie z deep sleep (oszczędność baterii)
-//    - Timeout 5 min dla Zigbee.connected() — brak połączenia = sleep zamiast rozładowania
-//    - ZIGBEE_REPORT_COUNT jako stała (koniec hardcoded 3)
-//    - readTempAndHumidity() zamiast dwóch osobnych odczytów I2C
-//
-//    - Skip 5s countdown after deep sleep wake-up (battery saving)
-//    - 5 min timeout for Zigbee.connected() — no connection = sleep instead of drain
-//    - ZIGBEE_REPORT_COUNT as named constant (no more hardcoded 3)
-//    - readTempAndHumidity() instead of two separate I2C reads
-//
-
-//    - Retry logic dla czujników I2C (3 próby)
-//    - Timeout odczytu SHT3x oparty o millis()
-//    - Flaga dostępności INA226 — brak krytycznego błędu przy awarii
-//    - Walidacja zakresu SHT3x (-40…85°C / 0…100%RH)
-//    - Stan urządzenia w strukturze DeviceState (brak luźnych globali)
-//    - volatile + portENTER_CRITICAL dla goToSleep (bezpieczna dla FreeRTOS)
-//    - Explicit WiFi/BLE disable przed deep sleep
-//    - Ulepszone logowanie błędów I2C
-//
-//    - Retry logic for I2C sensors (3 attempts)
-//    - SHT3x read timeout based on millis()
-//    - INA226 availability flag — no critical failure on sensor absence
-//    - SHT3x range validation (-40…85°C / 0…100%RH)
-//    - Device state in DeviceState struct (no loose globals)
-//    - volatile + portENTER_CRITICAL for goToSleep (FreeRTOS-safe)
-//    - Explicit WiFi/BLE disable before deep sleep
-//    - Improved I2C error logging
+//    - Restored active button handling in loop() – factory reset works even
+//      when device is awake (e.g., waiting for connection).
+//    - Kept GPIO wakeup from deep sleep – button works in any state.
+//    - Added debounce for button.
+//    - Unified factory reset logging.
 //
 // =============================================================================
 //  MODYFIKACJA ORYGINALNEGO PRZYKŁADU / MODIFICATION OF ORIGINAL EXAMPLE
@@ -676,6 +628,24 @@ void setup() {
 //  Main loop
 // =============================================================================
 void loop() {
+  // ---- Obsługa przycisku w stanie aktywnym ----
+  // Dodano: natychmiastowy factory reset po wciśnięciu przycisku, gdy urządzenie nie śpi
+  // (przycisk działa już podczas głębokiego snu przez GPIO wakeup, a tutaj uzupełniamy o aktywny stan)
+  if (digitalRead(button) == LOW) {
+    delay(50);  // prosty debounce
+    if (digitalRead(button) == LOW) {
+      LOG_WARN("Przycisk wciśnięty w stanie aktywnym – wykonuję factory reset");
+      // Mignięcie diodą 3x jako potwierdzenie
+      for (int i = 0; i < 3; i++) {
+        digitalWrite(LED_PIN, LOW);  delay(100);
+        digitalWrite(LED_PIN, HIGH); delay(100);
+      }
+      digitalWrite(LED_PIN, LOW);
+      Zigbee.factoryReset();
+      esp_restart();
+    }
+  }
+
   updateLed();
 
   // Po połączeniu — jednorazowo uruchom pomiar
