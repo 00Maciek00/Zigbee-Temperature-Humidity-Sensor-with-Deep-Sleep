@@ -303,8 +303,10 @@ Sprawdź wyjście Serial Monitor / Check Serial Monitor output:
     ├── SHT3x_pinout.jpg
     ├── ina226_pinout.jpg
     └── xiao_esp32c6_pinout.jpg
+```
 
 ---
+
 ## Licencja / License
 
 Ten projekt oparty jest na przykładzie Espressif Systems objętym licencją Apache 2.0.  
