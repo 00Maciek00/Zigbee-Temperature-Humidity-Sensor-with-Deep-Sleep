@@ -1,4 +1,10 @@
-# Zigbee Czujnik Temperatury i Wilgotności z Deep Sleep
+# Zigbee Temperature and Humidity Sensor with Deep Sleep
+
+[Polski](#polski) | [English](#english)
+
+---
+
+## Polski
 
 Czujnik temperatury i wilgotności oparty na module Seeed Studio XIAO ESP32C6 z obsługą protokołu Zigbee i trybem głębokiego uśpienia. Urządzenie mierzy temperaturę, wilgotność oraz poziom naładowania baterii LiPo, a następnie wysyła dane do koordynatora Zigbee i usypia na 10 minut.
 
@@ -104,7 +110,7 @@ Szczegóły w pliku [LICENSE](LICENSE).
 ---
 ---
 
-# Zigbee Temperature and Humidity Sensor with Deep Sleep
+## Englisch
 
 A temperature and humidity sensor based on the Seeed Studio XIAO ESP32C6 module with Zigbee protocol support and deep sleep mode. The device measures temperature, humidity, and LiPo battery level, sends the data to a Zigbee coordinator, and then sleeps for 10 minutes.
 
