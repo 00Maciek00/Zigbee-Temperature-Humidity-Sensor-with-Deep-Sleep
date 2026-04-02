@@ -561,7 +561,7 @@ void setup() {
 
   // Konfiguracja endpointu Zigbee
   // Zigbee endpoint configuration
-  zbTempSensor.setManufacturerAndModel("Espressif", "SleepyZigbeeTempSensor");
+  zbTempSensor.setManufacturerAndModel("S.M. DIY Home", "TempHumiditySensor");
   zbTempSensor.setMinMaxValue(SHT3X_TEMP_MIN, SHT3X_TEMP_MAX);
   zbTempSensor.setTolerance(0.3f);                        // ← przywrócone
   zbTempSensor.setPowerSource(ZB_POWER_SOURCE_BATTERY, 100); // ← trzeci argument (napięcie nominalne baterii)
