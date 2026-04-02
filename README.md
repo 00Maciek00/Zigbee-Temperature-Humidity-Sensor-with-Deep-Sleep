@@ -110,7 +110,7 @@ Szczegóły w pliku [LICENSE](LICENSE).
 ---
 ---
 
-## Englisch
+## English
 
 A temperature and humidity sensor based on the Seeed Studio XIAO ESP32C6 module with Zigbee protocol support and deep sleep mode. The device measures temperature, humidity, and LiPo battery level, sends the data to a Zigbee coordinator, and then sleeps for 10 minutes.
 
